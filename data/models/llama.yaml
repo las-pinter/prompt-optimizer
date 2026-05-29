@@ -1,0 +1,74 @@
+model_id: llama
+display_name: Meta Llama (llama-2 / llama-3 family)
+vendor: Meta
+api_type: varies  # text-generation via transformers, llama.cpp, vLLM, Ollama, etc.
+
+# Llama models are strongly format-sensitive — they were fine-tuned on specific templates
+# and perform best when those exact templates are used.
+chat_template:
+  llama2:
+    system_delivery: inline_tokens
+    format: "<s>[INST] <<SYS>>\n{system}\n<</SYS>>\n\n{user} [/INST]"
+    special_tokens: ["<s>", "</s>", "[INST]", "[/INST]", "<<SYS>>", "<</SYS>>"]
+
+  llama3:
+    system_delivery: inline_tokens
+    format: "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n{system}<|eot_id|><|start_header_id|>user<|end_header_id|>\n{user}<|eot_id|><|start_header_id|>assistant<|end_header_id|>"
+    special_tokens:
+      - "<|begin_of_text|>"
+      - "<|start_header_id|>"
+      - "<|end_header_id|>"
+      - "<|eot_id|>"
+
+preferences:
+  formatting: explicit         # needs explicit, unambiguous structure — doesn't infer well
+  chain_of_thought: helpful    # "think step by step" consistently improves reasoning tasks
+  markdown: limited            # base models may not render markdown; use plain structure
+  verbosity: medium
+  xml_tags: poor               # XML tags are less reliable; prefer plain headers
+  nested_instructions: limited # degrades with deeply nested or complex instruction sets
+  role_play: moderate
+  explicit_context: required   # does not assume context the way GPT/Claude do
+
+warnings:
+  - You MUST use the correct chat template for the specific Llama version (2 vs 3 templates differ significantly)
+  - Without proper special tokens, the model may ignore the system prompt entirely
+  - Keep instructions simple and non-nested; complexity degrades output quality
+  - Llama 2 is sensitive to token count in system prompts — keep them under ~512 tokens
+  - Do not use markdown headers (###) as structural guides — use plain labels instead
+
+transformations:
+  - id: apply_llama3_template
+    description: Wrap system and user content in Llama 3 special tokens
+    type: chat_template_wrap
+    template: llama3
+    condition: model_version == 3
+
+  - id: apply_llama2_template
+    description: Wrap system and user content in Llama 2 [INST]/<<SYS>> tokens
+    type: chat_template_wrap
+    template: llama2
+    condition: model_version == 2
+
+  - id: add_cot_instruction
+    description: Add chain-of-thought instruction for reasoning tasks
+    type: phrase_inject
+    phrase: "Think step by step."
+    position: end_of_system
+    condition: task_type == "reasoning" and not has_cot_instruction
+
+  - id: flatten_nested_instructions
+    description: Warn when instructions have more than 2 levels of nesting
+    type: lint_warning
+    check: instruction_nesting_depth > 2
+    message: "Llama models degrade with deeply nested instructions. Consider flattening to a simple numbered list."
+
+  - id: strip_xml_tags
+    description: Convert XML-style tags to plain-text headers for Llama
+    type: xml_to_headers
+    condition: has_xml_tags
+
+sources:
+  - https://llama.meta.com/docs/model-cards-and-prompt-formats/meta-llama-2/
+  - https://llama.meta.com/docs/model-cards-and-prompt-formats/meta-llama-3/
+  - https://github.com/meta-llama/prompt-ops

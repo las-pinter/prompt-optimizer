@@ -1,0 +1,44 @@
+model_id: qwen
+display_name: Alibaba Qwen (Qwen2 / Qwen2.5 / QwQ family)
+vendor: Alibaba DAMO Academy
+api_type: varies  # transformers, vLLM, Ollama, OpenAI-compatible API
+
+chat_template:
+  chatml:
+    system_delivery: inline_tokens
+    format: "<|im_start|>system\n{system}<|im_end|>\n<|im_start|>user\n{user}<|im_end|>\n<|im_start|>assistant\n"
+    special_tokens:
+      - "<|im_start|>"
+      - "<|im_end|>"
+
+preferences:
+  formatting: explicit
+  chain_of_thought: helpful    # QwQ (reasoning variant) uses extended CoT natively
+  markdown: moderate
+  verbosity: medium
+  xml_tags: limited
+  multilingual: excellent      # strong Chinese/English bilingual capability
+  code: excellent              # Qwen-Coder variants are strong at code tasks
+  math: excellent              # strong math reasoning, especially QwQ
+
+warnings:
+  - Qwen uses ChatML format (<|im_start|> / <|im_end|>) — not Llama or Alpaca format
+  - QwQ is a reasoning model with extended chain-of-thought; do not suppress thinking tokens
+  - Qwen2.5-Coder should be prompted with code-specific context for best results
+  - Bilingual prompts (Chinese + English) are well supported but pick one language per session
+
+transformations:
+  - id: apply_chatml_template
+    description: Wrap content in ChatML tokens
+    type: chat_template_wrap
+    template: chatml
+
+  - id: strip_llama_tokens
+    description: Remove Llama-specific special tokens if present
+    type: regex_replace
+    pattern: "\\[INST\\]|\\[/INST\\]|<<SYS>>|<</SYS>>"
+    replacement: ""
+
+sources:
+  - https://qwen.readthedocs.io/en/latest/
+  - https://huggingface.co/Qwen

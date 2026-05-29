@@ -1,0 +1,50 @@
+model_id: gpt
+display_name: OpenAI GPT (gpt-3.5 / gpt-4 / gpt-4o / gpt-5 family)
+vendor: OpenAI
+api_type: chat_completions  # Uses /v1/chat/completions
+
+chat_template:
+  system_delivery: messages_role  # pass as {"role": "system", "content": "..."}
+  user_wrapper: null
+  assistant_wrapper: null
+  special_tokens: []
+
+preferences:
+  formatting: structured       # adapts well to bold, bullets, colons, explicit labels
+  chain_of_thought: optional   # reasoning models (o-series, gpt-5) handle CoT internally
+  markdown: good               # renders and responds well to markdown
+  verbosity: medium
+  xml_tags: partial            # understands XML but doesn't natively prefer it
+  nested_instructions: excellent
+  anchored_prompts: excellent  # responds well to labeled sections and explicit anchors
+  role_play: excellent
+
+warnings:
+  - On o-series and gpt-5 reasoning models, explicit chain-of-thought instructions are discouraged by OpenAI
+  - Keep gpt-3.5 system prompts short and direct — it degrades with very long system prompts
+  - gpt-4o and later handle long, complex system prompts well
+
+transformations:
+  - id: strip_llama_tokens
+    description: Remove Llama-specific special tokens
+    type: regex_replace
+    pattern: "\\[INST\\]|\\[/INST\\]|<<SYS>>|<</SYS>>"
+    replacement: ""
+
+  - id: strip_alpaca_headers
+    description: Remove Alpaca-style ### headers
+    type: regex_replace
+    pattern: "###\\s*(Instruction|Input|Response):"
+    replacement: ""
+
+  - id: remove_explicit_cot_reasoning
+    description: Remove CoT phrases for o-series / gpt-5 reasoning models
+    type: phrase_remove
+    phrases:
+      - "think step by step"
+      - "let's think through this step by step"
+    condition: model_variant in ["o1", "o3", "o4", "gpt-5"]
+
+sources:
+  - https://platform.openai.com/docs/guides/prompt-engineering
+  - https://platform.openai.com/docs/models

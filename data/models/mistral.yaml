@@ -1,0 +1,55 @@
+model_id: mistral
+display_name: Mistral AI (Mistral 7B / Mixtral / Mistral Large family)
+vendor: Mistral AI
+api_type: varies  # OpenAI-compatible API, transformers, llama.cpp, Ollama
+
+chat_template:
+  instruct:
+    system_delivery: inline_tokens
+    # Mistral instruct uses a simplified version of Llama 2's format (no <<SYS>>)
+    format: "<s>[INST] {system}\n\n{user} [/INST]"
+    special_tokens: ["<s>", "</s>", "[INST]", "[/INST]"]
+  v3_tekken:
+    # Mistral v3+ uses a new tokenizer (Tekken) with different token IDs
+    system_delivery: inline_tokens
+    format: "[INST]{system}\n\n{user}[/INST]"
+
+preferences:
+  formatting: moderate         # more flexible than Llama but benefits from clear structure
+  chain_of_thought: helpful    # benefits from explicit CoT on reasoning tasks
+  markdown: moderate
+  verbosity: medium-low        # more concise by default than Claude
+  xml_tags: limited
+  nested_instructions: moderate
+  role_play: good
+  guidance_needed: moderate    # more guidance needed than GPT for complex tasks
+
+warnings:
+  - Mistral instruct format does NOT use <<SYS>> tags — system prompt goes directly inside [INST]
+  - Mistral v3+ (Tekken tokenizer) has different special token behavior — check model version
+  - Mixtral (MoE) models are more capable and handle complexity better than base Mistral 7B
+  - Mistral Large (via La Plateforme API) is OpenAI-compatible and needs no special tokens
+
+transformations:
+  - id: apply_mistral_instruct_template
+    description: Wrap content in Mistral [INST] format (without <<SYS>>)
+    type: chat_template_wrap
+    template: instruct
+    condition: model_variant in ["7b-instruct", "mixtral-instruct"]
+
+  - id: strip_sys_tags
+    description: Remove <<SYS>> tags which are Llama 2-specific, not Mistral
+    type: regex_replace
+    pattern: "<<SYS>>|<</SYS>>"
+    replacement: ""
+
+  - id: add_cot_instruction
+    description: Inject CoT phrase for reasoning tasks
+    type: phrase_inject
+    phrase: "Think step by step."
+    position: end_of_system
+    condition: task_type == "reasoning" and not has_cot_instruction
+
+sources:
+  - https://docs.mistral.ai/guides/prompting-capabilities/
+  - https://docs.mistral.ai/api/

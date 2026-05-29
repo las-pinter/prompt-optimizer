@@ -1,0 +1,61 @@
+model_id: claude
+display_name: Anthropic Claude (claude-3/claude-4 family)
+vendor: Anthropic
+api_type: messages  # Uses /v1/messages, not /v1/completions
+
+# Claude uses API-level role separation — no special tokens needed in prompt text.
+# System prompt is passed as a top-level "system" parameter, not inside the messages array.
+chat_template:
+  system_delivery: api_field   # pass as system= kwarg, not in message body
+  user_wrapper: null
+  assistant_wrapper: null
+  special_tokens: []
+
+preferences:
+  formatting: declarative      # prefers clear declarative sentences
+  chain_of_thought: optional   # reasoning models handle CoT internally; explicit CoT rarely helps
+  markdown: moderate           # renders markdown but doesn't require it
+  verbosity: high              # tends toward thorough, detailed answers by default
+  xml_tags: supported          # Claude natively understands <tag>...</tag> structure in prompts
+  sentence_stems: helpful      # responds well to "The answer is...", "The key finding is..."
+  nested_instructions: good    # handles complex, nested instruction sets well
+  role_play: good
+
+warnings:
+  - Avoid open-ended fragments; use complete declarative sentences
+  - Explicit "think step by step" adds tokens without consistent accuracy gain on claude-3+ models
+  - Do not wrap system prompt in [INST] or <<SYS>> tags — those are Llama conventions
+  - Verbosity is high by default; add explicit length constraints if brevity is needed
+
+# Transformations to apply when adapting a prompt TO this model
+transformations:
+  - id: strip_llama_tokens
+    description: Remove [INST], <<SYS>>, <</SYS>>, [/INST] tokens
+    type: regex_replace
+    pattern: "\\[INST\\]|\\[/INST\\]|<<SYS>>|<</SYS>>"
+    replacement: ""
+
+  - id: strip_alpaca_headers
+    description: Remove ### Instruction / ### Input / ### Response headers
+    type: regex_replace
+    pattern: "###\\s*(Instruction|Input|Response):"
+    replacement: ""
+
+  - id: remove_explicit_cot
+    description: Remove "think step by step" if model family is claude-3 or higher
+    type: phrase_remove
+    phrases:
+      - "think step by step"
+      - "let's think through this step by step"
+      - "think carefully step by step"
+    condition: model_version >= 3
+
+  - id: suggest_length_constraint
+    description: Warn user if no length instruction is present, given Claude's verbosity
+    type: lint_warning
+    check: no_length_instruction
+    message: "Claude tends to be verbose. Consider adding an explicit length constraint (e.g. 'Be concise. Answer in 2-3 sentences.')."
+
+sources:
+  - https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/overview
+  - https://docs.anthropic.com/en/docs/about-claude/models/overview

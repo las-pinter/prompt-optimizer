@@ -1,0 +1,52 @@
+model_id: gemini
+display_name: Google Gemini (Gemini 1.5 / Gemini 2 / Gemini 3 family)
+vendor: Google DeepMind
+api_type: google_genai  # Uses Google AI SDK or Vertex AI
+
+chat_template:
+  system_delivery: api_field   # system_instruction= parameter in Google AI SDK
+  user_wrapper: null
+  assistant_wrapper: null
+  special_tokens: []
+
+preferences:
+  formatting: structured_markdown  # performs best with markdown sections and headers
+  chain_of_thought: optional   # Gemini Pro/Ultra reason internally; Flash still benefits
+  markdown: excellent          # ideal for long-form, document-style tasks
+  verbosity: medium
+  xml_tags: partial
+  nested_instructions: good
+  sectioned_templates: excellent  # thrives with clearly sectioned, labeled prompt layouts
+  multimodal: excellent        # native multimodal support (text, image, audio, video)
+
+warnings:
+  - Explicit CoT ("think step by step") is unnecessary and adds tokens on Gemini 3 Pro and Ultra
+  - Gemini 3 Flash still benefits from CoT instructions
+  - Use markdown section headers (##, ###) to structure long system prompts — Gemini responds well
+  - system_instruction is a separate field in the Google AI SDK, not part of the messages array
+  - Gemini is sensitive to safety filters; overly direct or terse instructions can trigger refusals
+
+transformations:
+  - id: strip_llama_tokens
+    description: Remove Llama-specific special tokens
+    type: regex_replace
+    pattern: "\\[INST\\]|\\[/INST\\]|<<SYS>>|<</SYS>>"
+    replacement: ""
+
+  - id: add_markdown_structure
+    description: Suggest adding markdown section headers if prompt is unstructured and long
+    type: lint_warning
+    check: prompt_length > 300 and no_markdown_headers
+    message: "Gemini performs better with structured markdown. Consider adding ## section headers to your system prompt."
+
+  - id: remove_explicit_cot_pro
+    description: Remove CoT phrases for Gemini Pro/Ultra
+    type: phrase_remove
+    phrases:
+      - "think step by step"
+      - "let's think through this step by step"
+    condition: model_variant in ["pro", "ultra", "2.0-pro", "3-pro"]
+
+sources:
+  - https://ai.google.dev/gemini-api/docs/prompting-strategies
+  - https://ai.google.dev/gemini-api/docs/system-instructions
