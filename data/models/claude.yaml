@@ -1,24 +1,89 @@
 model_id: claude
 display_name: Anthropic Claude (claude-3/claude-4 family)
 vendor: Anthropic
-api_type: messages  # Uses /v1/messages, not /v1/completions
+api_type: messages
 
-# Claude uses API-level role separation — no special tokens needed in prompt text.
-# System prompt is passed as a top-level "system" parameter, not inside the messages array.
 chat_template:
-  system_delivery: api_field   # pass as system= kwarg, not in message body
+  system_delivery: api_field
   user_wrapper: null
   assistant_wrapper: null
   special_tokens: []
 
+sub_families:
+  claude-2:
+    prompt_style: xml_block
+    xml_tags:
+      context: "<context>"
+      instructions: "<instructions>"
+    cot_policy: strip
+    examples: never
+    raw:
+      description: "Claude 2.1 and early Claude 3 models"
+      requires_context_tags: true
+      supports_reasoning: false
+
+  claude-3:
+    prompt_style: xml_block
+    xml_tags:
+      context: "<context>"
+      instructions: "<instructions>"
+    cot_policy: strip
+    examples: optional
+    raw:
+      description: "Claude 3 (Haiku, Sonnet, Opus)"
+      requires_context_tags: true
+      supports_reasoning: false
+      supports_native_system_prompt: true
+
+  claude-3.5:
+    prompt_style: xml_with_examples
+    xml_tags:
+      context: "<context>"
+      instructions: "<instructions>"
+      example: "<example>"
+    cot_policy: strip
+    examples: required
+    example_injection:
+      trigger: expects_structured_output
+      position: before_instructions
+      template: |
+        <example>
+        Input:  {{ user_example_input }}
+        Output: {{ user_example_output }}
+        </example>
+    raw:
+      description: "Claude 3.5 Haiku/Sonnet, Claude 3.7 Sonnet"
+      requires_context_tags: true
+      supports_reasoning: true
+      example_enhancement: true
+
+  claude-4:
+    prompt_style: agent_directives
+    xml_tags:
+      system_directives: "<system_directives>"
+      documents: "<documents>"
+      doc: '<doc id="{{doc_id}}">'
+    cot_policy: strip
+    examples: optional
+    agent_mode: true
+    agent_directives:
+      behavior: "{{ behavior_rules }}"
+      sources: "{{ source_data }}"
+    raw:
+      description: "Claude 4 Haiku/Sonnet/Opus (4.5-4.8)"
+      requires_context_tags: false
+      supports_reasoning: true
+      agent_architecture: true
+      supports_documents: true
+
 preferences:
-  formatting: declarative      # prefers clear declarative sentences
-  chain_of_thought: optional   # reasoning models handle CoT internally; explicit CoT rarely helps
-  markdown: moderate           # renders markdown but doesn't require it
-  verbosity: high              # tends toward thorough, detailed answers by default
-  xml_tags: supported          # Claude natively understands <tag>...</tag> structure in prompts
-  sentence_stems: helpful      # responds well to "The answer is...", "The key finding is..."
-  nested_instructions: good    # handles complex, nested instruction sets well
+  formatting: declarative
+  chain_of_thought: optional
+  markdown: moderate
+  verbosity: high
+  xml_tags: supported
+  sentence_stems: helpful
+  nested_instructions: good
   role_play: good
 
 warnings:
@@ -27,31 +92,49 @@ warnings:
   - Do not wrap system prompt in [INST] or <<SYS>> tags — those are Llama conventions
   - Verbosity is high by default; add explicit length constraints if brevity is needed
 
-# Transformations to apply when adapting a prompt TO this model
 transformations:
   - id: strip_llama_tokens
-    description: Remove [INST], <<SYS>>, <</SYS>>, [/INST] tokens
+    description: Remove Llama-specific special tokens
     type: regex_replace
     pattern: "\\[INST\\]|\\[/INST\\]|<<SYS>>|<</SYS>>"
     replacement: ""
 
   - id: strip_alpaca_headers
-    description: Remove ### Instruction / ### Input / ### Response headers
+    description: Remove Alpaca-style ### headers
     type: regex_replace
     pattern: "###\\s*(Instruction|Input|Response):"
     replacement: ""
 
   - id: remove_explicit_cot
-    description: Remove "think step by step" if model family is claude-3 or higher
+    description: Remove "think step by step" for claude-3+ models
     type: phrase_remove
     phrases:
       - "think step by step"
       - "let's think through this step by step"
       - "think carefully step by step"
-    condition: model_version >= 3
+    condition: model_variant starts_with "claude-3" or model_variant starts_with "claude-4"
+
+  - id: apply_cot_policy
+    description: Apply sub_family CoT policy (strip/keep/inject)
+    type: cot_policy
+
+  - id: apply_prompt_style
+    description: Apply sub_family prompt style (xml_block, xml_with_examples, agent_directives)
+    type: prompt_style
+
+  - id: inject_example_block
+    description: Inject <example> blocks for structured output (claude-3.5+)
+    type: example_inject
+    condition: model_variant starts_with "claude-3.5" or model_variant starts_with "claude-3.7"
+
+  - id: wrap_agent_directives
+    description: Wrap behavior rules in <system_directives> (claude-4)
+    type: xml_rewrite
+    target_block: system_directives
+    condition: model_variant starts_with "claude-4"
 
   - id: suggest_length_constraint
-    description: Warn user if no length instruction is present, given Claude's verbosity
+    description: Warn about verbosity
     type: lint_warning
     check: no_length_instruction
     message: "Claude tends to be verbose. Consider adding an explicit length constraint (e.g. 'Be concise. Answer in 2-3 sentences.')."

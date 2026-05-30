@@ -1,0 +1,95 @@
+model_id: minimax
+display_name: MiniMax (Text-01 / M1 / M2 family)
+vendor: MiniMax
+api_type: varies
+
+chat_template:
+  default:
+    system_delivery: messages_role
+    user_wrapper: null
+    assistant_wrapper: null
+    special_tokens: []
+
+sub_families:
+  minimax-text:
+    prompt_style: style_first
+    cot_policy: inject
+    examples: optional
+    raw:
+      description: "MiniMax-Text-01"
+      supports_reasoning: false
+      stylistic: true
+      style_at_start: true
+      tone_constraints_first: true
+
+  minimax-m1:
+    prompt_style: style_first
+    cot_policy: inject
+    examples: optional
+    raw:
+      description: "MiniMax-M1 (40K/80K)"
+      supports_reasoning: false
+      stylistic: true
+      style_at_start: true
+      tone_constraints_first: true
+      context_window: 80000
+
+  minimax-m2:
+    prompt_style: style_first
+    cot_policy: inject
+    examples: optional
+    raw:
+      description: "MiniMax-M2"
+      supports_reasoning: false
+      stylistic: true
+      style_at_start: true
+      tone_constraints_first: true
+
+  minimax-m2.1:
+    prompt_style: style_first
+    cot_policy: inject
+    examples: optional
+    raw:
+      description: "MiniMax-M2.1"
+      supports_reasoning: false
+      stylistic: true
+      style_at_start: true
+      tone_constraints_first: true
+
+preferences:
+  formatting: markdown
+  chain_of_thought: helpful
+  markdown: good
+  verbosity: medium
+  xml_tags: limited
+  stylistic: excellent
+
+warnings:
+  - MiniMax models are stylistic/text-writing focused
+  - Tone, style, and emotional constraints MUST be in the first sentence of the prompt
+  - Do not put style rules at the end of the prompt — they will be ignored
+
+transformations:
+  - id: strip_llama_tokens
+    description: Remove Llama-specific special tokens
+    type: regex_replace
+    pattern: "\\[INST\\]|\\[/INST\\]|<<SYS>>|<</SYS>>"
+    replacement: ""
+
+  - id: apply_cot_policy
+    description: Apply sub_family CoT policy
+    type: cot_policy
+
+  - id: apply_prompt_style
+    description: Apply sub_family prompt style
+    type: prompt_style
+
+  - id: enforce_style_at_start
+    description: Move style/tone constraints to the first sentence (MiniMax)
+    type: xml_rewrite
+    target_block: style_constraints
+    condition: model_variant starts_with "minimax"
+
+sources:
+  - https://www.minimax.io/
+  - https://platform.minimax.cn/

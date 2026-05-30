@@ -1,16 +1,13 @@
 model_id: llama
-display_name: Meta Llama (llama-2 / llama-3 family)
+display_name: Meta Llama (llama-2 / llama-3 / llama-4 family)
 vendor: Meta
-api_type: varies  # text-generation via transformers, llama.cpp, vLLM, Ollama, etc.
+api_type: varies
 
-# Llama models are strongly format-sensitive — they were fine-tuned on specific templates
-# and perform best when those exact templates are used.
 chat_template:
   llama2:
     system_delivery: inline_tokens
     format: "<s>[INST] <<SYS>>\n{system}\n<</SYS>>\n\n{user} [/INST]"
     special_tokens: ["<s>", "</s>", "[INST]", "[/INST]", "<<SYS>>", "<</SYS>>"]
-
   llama3:
     system_delivery: inline_tokens
     format: "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n{system}<|eot_id|><|start_header_id|>user<|end_header_id|>\n{user}<|eot_id|><|start_header_id|>assistant<|end_header_id|>"
@@ -20,15 +17,87 @@ chat_template:
       - "<|end_header_id|>"
       - "<|eot_id|>"
 
+sub_families:
+  llama-2:
+    prompt_style: default
+    cot_policy: inject
+    examples: never
+    raw:
+      description: "Llama 2 (7B, 13B, 70B)"
+      chat_template: llama2
+      max_system_prompt_tokens: 512
+      supports_reasoning: false
+      cot_benefit: true
+
+  llama-3:
+    prompt_style: default
+    cot_policy: inject
+    examples: never
+    raw:
+      description: "Llama 3 (8B, 70B)"
+      chat_template: llama3
+      max_system_prompt_tokens: null
+      supports_reasoning: false
+      cot_benefit: true
+
+  llama-3.1:
+    prompt_style: default
+    cot_policy: inject
+    examples: never
+    raw:
+      description: "Llama 3.1 (8B, 70B, 405B)"
+      chat_template: llama3
+      max_system_prompt_tokens: null
+      supports_reasoning: false
+      cot_benefit: true
+      supports_405k_context: true
+
+  llama-3.2:
+    prompt_style: default
+    cot_policy: inject
+    examples: never
+    raw:
+      description: "Llama 3.2 (3B, 11B)"
+      chat_template: llama3
+      max_system_prompt_tokens: null
+      supports_reasoning: false
+      cot_benefit: true
+      edge_optimized: true
+
+  llama-3.3:
+    prompt_style: default
+    cot_policy: inject
+    examples: never
+    raw:
+      description: "Llama 3.3 (70B)"
+      chat_template: llama3
+      max_system_prompt_tokens: null
+      supports_reasoning: false
+      cot_benefit: true
+
+  llama-4:
+    prompt_style: chunked
+    cot_policy: inject
+    examples: never
+    raw:
+      description: "Llama 4 Scout / Maverick (MoE, giant context)"
+      chat_template: llama3
+      max_system_prompt_tokens: null
+      supports_reasoning: false
+      cot_benefit: true
+      moe: true
+      chunked_context: true
+      chunk_header_format: "# Part {{chunk_number}}"
+
 preferences:
-  formatting: explicit         # needs explicit, unambiguous structure — doesn't infer well
-  chain_of_thought: helpful    # "think step by step" consistently improves reasoning tasks
-  markdown: limited            # base models may not render markdown; use plain structure
+  formatting: explicit
+  chain_of_thought: helpful
+  markdown: limited
   verbosity: medium
-  xml_tags: poor               # XML tags are less reliable; prefer plain headers
-  nested_instructions: limited # degrades with deeply nested or complex instruction sets
+  xml_tags: poor
+  nested_instructions: limited
   role_play: moderate
-  explicit_context: required   # does not assume context the way GPT/Claude do
+  explicit_context: required
 
 warnings:
   - You MUST use the correct chat template for the specific Llama version (2 vs 3 templates differ significantly)
@@ -36,13 +105,14 @@ warnings:
   - Keep instructions simple and non-nested; complexity degrades output quality
   - Llama 2 is sensitive to token count in system prompts — keep them under ~512 tokens
   - Do not use markdown headers (###) as structural guides — use plain labels instead
+  - MoE models (Llama 4) benefit from chunked context with clear section headers
 
 transformations:
   - id: apply_llama3_template
     description: Wrap system and user content in Llama 3 special tokens
     type: chat_template_wrap
     template: llama3
-    condition: model_version == 3
+    condition: model_variant starts_with "llama-3"
 
   - id: apply_llama2_template
     description: Wrap system and user content in Llama 2 [INST]/<<SYS>> tokens
@@ -67,6 +137,26 @@ transformations:
     description: Convert XML-style tags to plain-text headers for Llama
     type: xml_to_headers
     condition: has_xml_tags
+
+  - id: add_no_intro_outro
+    description: Add anti-verbosity directive (all Llama)
+    type: phrase_inject
+    phrase: "Do not write an introduction. Do not write a summary. Return only the requested data."
+    position: end_of_system
+
+  - id: apply_cot_policy
+    description: Apply sub_family CoT policy
+    type: cot_policy
+
+  - id: apply_prompt_style
+    description: Apply sub_family prompt style
+    type: prompt_style
+
+  - id: chunk_context_for_llama4
+    description: Split long inputs into logical chunks with headers (Llama 4)
+    type: xml_rewrite
+    target_block: context_chunks
+    condition: model_variant starts_with "llama-4"
 
 sources:
   - https://llama.meta.com/docs/model-cards-and-prompt-formats/meta-llama-2/

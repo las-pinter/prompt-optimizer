@@ -1,22 +1,93 @@
 model_id: gpt
 display_name: OpenAI GPT (gpt-3.5 / gpt-4 / gpt-4o / gpt-5 family)
 vendor: OpenAI
-api_type: chat_completions  # Uses /v1/chat/completions
+api_type: chat_completions
 
 chat_template:
-  system_delivery: messages_role  # pass as {"role": "system", "content": "..."}
+  system_delivery: messages_role
   user_wrapper: null
   assistant_wrapper: null
   special_tokens: []
 
+sub_families:
+  gpt-3.5:
+    prompt_style: default
+    cot_policy: inject
+    examples: optional
+    raw:
+      description: "GPT-3.5 Turbo"
+      max_system_prompt_length: 512
+      supports_reasoning: false
+      cot_benefit: true
+
+  gpt-4:
+    prompt_style: default
+    cot_policy: optional
+    examples: optional
+    raw:
+      description: "GPT-4 / GPT-4o / GPT-4.1 (all variants)"
+      max_system_prompt_length: null
+      supports_reasoning: false
+      cot_benefit: false
+      handles_long_context: true
+
+  gpt-4.5:
+    prompt_style: negative_rules
+    cot_policy: strip
+    examples: optional
+    raw:
+      description: "GPT-4.5, GPT-5 (all variants)"
+      max_system_prompt_length: null
+      supports_reasoning: true
+      cot_benefit: false
+      negative_prompting: true
+      negative_rules_block: "### Rules"
+
+  gpt-5:
+    prompt_style: negative_rules
+    cot_policy: strip
+    examples: optional
+    raw:
+      description: "GPT-5 (all variants)"
+      max_system_prompt_length: null
+      supports_reasoning: true
+      cot_benefit: false
+      negative_prompting: true
+      negative_rules_block: "### Rules"
+
+  o1:
+    prompt_style: raw_data
+    cot_policy: strip
+    examples: optional
+    raw:
+      description: "o1, o1-mini (reasoning models)"
+      max_system_prompt_length: null
+      supports_reasoning: true
+      cot_benefit: false
+      no_cot_instructions: true
+      output_format_only: true
+
+  o3:
+    prompt_style: raw_data
+    cot_policy: strip
+    examples: optional
+    raw:
+      description: "o3, o3-mini, o3-pro, o4-mini (reasoning models)"
+      max_system_prompt_length: null
+      supports_reasoning: true
+      cot_benefit: false
+      no_cot_instructions: true
+      output_format_only: true
+      reasoning_effort_control: true
+
 preferences:
-  formatting: structured       # adapts well to bold, bullets, colons, explicit labels
-  chain_of_thought: optional   # reasoning models (o-series, gpt-5) handle CoT internally
-  markdown: good               # renders and responds well to markdown
+  formatting: structured
+  chain_of_thought: optional
+  markdown: good
   verbosity: medium
-  xml_tags: partial            # understands XML but doesn't natively prefer it
+  xml_tags: partial
   nested_instructions: excellent
-  anchored_prompts: excellent  # responds well to labeled sections and explicit anchors
+  anchored_prompts: excellent
   role_play: excellent
 
 warnings:
@@ -43,7 +114,27 @@ transformations:
     phrases:
       - "think step by step"
       - "let's think through this step by step"
-    condition: model_variant in ["o1", "o3", "o4", "gpt-5"]
+    condition: model_variant in ["o1", "o1-mini", "o3", "o3-mini", "o3-pro", "o4-mini", "gpt-5"]
+
+  - id: apply_cot_policy
+    description: Apply sub_family CoT policy (strip/keep/inject)
+    type: cot_policy
+
+  - id: apply_prompt_style
+    description: Apply sub_family prompt style
+    type: prompt_style
+
+  - id: inject_negative_rules
+    description: Add ### Rules block for gpt-4.5+ (negative prompting)
+    type: xml_rewrite
+    target_block: negative_rules
+    condition: model_variant starts_with "gpt-4.5" or model_variant starts_with "gpt-5"
+
+  - id: suggest_length_constraint
+    description: Warn about verbosity
+    type: lint_warning
+    check: no_length_instruction
+    message: "GPT models benefit from explicit length constraints for consistent output."
 
 sources:
   - https://platform.openai.com/docs/guides/prompt-engineering

@@ -1,23 +1,81 @@
 model_id: gemini
-display_name: Google Gemini (Gemini 1.5 / Gemini 2 / Gemini 3 family)
+display_name: Google Gemini & Gemma (Gemini 1.5 / 2 / 3 family)
 vendor: Google DeepMind
-api_type: google_genai  # Uses Google AI SDK or Vertex AI
+api_type: google_genai
 
 chat_template:
-  system_delivery: api_field   # system_instruction= parameter in Google AI SDK
+  system_delivery: api_field
   user_wrapper: null
   assistant_wrapper: null
   special_tokens: []
 
+sub_families:
+  gemini-1.5:
+    prompt_style: redundant
+    cot_policy: optional
+    examples: optional
+    raw:
+      description: "Gemini 1.5 Pro, Gemini 1.5 Flash"
+      separator_style:
+        - "=== ADATOK ==="
+        - "---"
+      redundant_instructions: true
+      supports_reasoning: false
+      supports_extreme_context: true
+      context_window: 1000000
+
+  gemini-2.0:
+    prompt_style: direct
+    cot_policy: inject
+    examples: never
+    raw:
+      description: "Gemini 2.0 Flash, Gemini 2.0 Flash Lite"
+      json_ending: "Answer in JSON:\n{"
+      supports_reasoning: false
+      agile: true
+      no_formatting: true
+
+  gemma-3:
+    prompt_style: direct
+    cot_policy: inject
+    examples: never
+    raw:
+      description: "Gemma 3 9B, Gemma 3 27B"
+      json_ending: "Answer in JSON:\n{"
+      supports_reasoning: false
+      agile: true
+      no_formatting: true
+
+  gemini-2.5-flash:
+    prompt_style: focused
+    cot_policy: strip
+    examples: never
+    raw:
+      description: "Gemini 2.5 Flash, Gemini 2.5 Flash-Lite"
+      supports_reasoning: false
+      focused_instructions: true
+      skip_framing: true
+
+  gemini-2.5-pro:
+    prompt_style: raw_data
+    cot_policy: strip
+    examples: optional
+    raw:
+      description: "Gemini 2.5 Pro (Deep Think)"
+      supports_reasoning: true
+      native_reasoning: true
+      no_cot_instructions: true
+      output_structure_only: true
+
 preferences:
-  formatting: structured_markdown  # performs best with markdown sections and headers
-  chain_of_thought: optional   # Gemini Pro/Ultra reason internally; Flash still benefits
-  markdown: excellent          # ideal for long-form, document-style tasks
+  formatting: structured_markdown
+  chain_of_thought: optional
+  markdown: excellent
   verbosity: medium
   xml_tags: partial
   nested_instructions: good
-  sectioned_templates: excellent  # thrives with clearly sectioned, labeled prompt layouts
-  multimodal: excellent        # native multimodal support (text, image, audio, video)
+  sectioned_templates: excellent
+  multimodal: excellent
 
 warnings:
   - Explicit CoT ("think step by step") is unnecessary and adds tokens on Gemini 3 Pro and Ultra
@@ -37,7 +95,7 @@ transformations:
     description: Suggest adding markdown section headers if prompt is unstructured and long
     type: lint_warning
     check: prompt_length > 300 and no_markdown_headers
-    message: "Gemini performs better with structured markdown. Consider adding ## section headers to your system prompt."
+    message: "Gemini performs better with structured markdown. Consider adding ## section headers."
 
   - id: remove_explicit_cot_pro
     description: Remove CoT phrases for Gemini Pro/Ultra
@@ -46,6 +104,33 @@ transformations:
       - "think step by step"
       - "let's think through this step by step"
     condition: model_variant in ["pro", "ultra", "2.0-pro", "3-pro"]
+
+  - id: apply_cot_policy
+    description: Apply sub_family CoT policy
+    type: cot_policy
+
+  - id: apply_prompt_style
+    description: Apply sub_family prompt style
+    type: prompt_style
+
+  - id: add_visual_separators
+    description: Add visual separators for extreme context models (gemini-1.5)
+    type: xml_rewrite
+    target_block: data_blocks
+    condition: model_variant starts_with "gemini-1.5"
+
+  - id: add_json_ending
+    description: Add JSON format ending for agile models
+    type: phrase_inject
+    phrase: "Answer in JSON:\n{"
+    position: end_of_system
+    condition: model_variant starts_with "gemini-2.0" or model_variant starts_with "gemma-3"
+
+  - id: add_redundant_instructions
+    description: Repeat key instructions at beginning and end (gemini-1.5)
+    type: xml_rewrite
+    target_block: instructions
+    condition: model_variant starts_with "gemini-1.5"
 
 sources:
   - https://ai.google.dev/gemini-api/docs/prompting-strategies

@@ -1,0 +1,82 @@
+model_id: phi
+display_name: Microsoft Phi (Phi-4 / Phi-4-Mini family)
+vendor: Microsoft
+api_type: varies
+
+chat_template:
+  default:
+    system_delivery: messages_role
+    user_wrapper: null
+    assistant_wrapper: null
+    special_tokens: []
+
+sub_families:
+  phi-4:
+    prompt_style: strict_brief
+    cot_policy: inject
+    examples: never
+    raw:
+      description: "Phi-4"
+      supports_reasoning: false
+      small_dense_model: true
+      strict_constraints: true
+      max_logical_steps: 1
+      brevity_required: true
+      max_sentences: 2
+
+  phi-4-mini:
+    prompt_style: strict_brief
+    cot_policy: inject
+    examples: never
+    raw:
+      description: "Phi-4-Mini"
+      supports_reasoning: false
+      small_dense_model: true
+      strict_constraints: true
+      max_logical_steps: 1
+      brevity_required: true
+      max_sentences: 2
+
+preferences:
+  formatting: plain
+  chain_of_thought: helpful
+  markdown: limited
+  verbosity: very-low
+  xml_tags: poor
+
+warnings:
+  - Phi models are small, dense models requiring very strict constraints
+  - Use short, direct instructions — "Answer in maximum 2 sentences"
+  - Avoid complex prompts with multiple logical steps
+  - One prompt = one simple task
+
+transformations:
+  - id: strip_llama_tokens
+    description: Remove Llama-specific special tokens
+    type: regex_replace
+    pattern: "\\[INST\\]|\\[/INST\\]|<<SYS>>|<</SYS>>"
+    replacement: ""
+
+  - id: apply_cot_policy
+    description: Apply sub_family CoT policy
+    type: cot_policy
+
+  - id: apply_prompt_style
+    description: Apply sub_family prompt style
+    type: prompt_style
+
+  - id: enforce_brevity
+    description: Add strict brevity constraint (Phi)
+    type: phrase_inject
+    phrase: "Answer in maximum 2 sentences."
+    position: end_of_system
+
+  - id: simplify_logic
+    description: Warn if prompt has too many logical steps (Phi)
+    type: lint_warning
+    check: instruction_nesting_depth > 1
+    message: "Phi models handle only single-step logical prompts. Simplify the request."
+
+sources:
+  - https://www.microsoft.com/en-us/ai/phi-4
+  - https://huggingface.co/microsoft/phi-4

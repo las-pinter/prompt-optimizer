@@ -1,0 +1,93 @@
+model_id: glm
+display_name: Zhipu GLM (GLM-4 / GLM-Z1 family)
+vendor: Zhipu AI
+api_type: varies
+
+chat_template:
+  default:
+    system_delivery: messages_role
+    user_wrapper: null
+    assistant_wrapper: null
+    special_tokens: []
+
+sub_families:
+  glm-4:
+    prompt_style: direct
+    cot_policy: inject
+    examples: never
+    raw:
+      description: "GLM-4 (9B, 32B, 4.5, 4.6, 4.7)"
+      supports_reasoning: false
+      direct_instructions: true
+      short_commands: true
+      commanding_tone: true
+
+  glm-4.6v:
+    prompt_style: direct
+    cot_policy: inject
+    examples: never
+    raw:
+      description: "GLM-4.6V (vision model)"
+      supports_reasoning: false
+      direct_instructions: true
+      vision_support: true
+      coordinate_references: true
+      coordinate_format:
+        - "Bal alsó negyed"
+        - "Felső középső harmad"
+
+  glm-z1:
+    prompt_style: raw_data
+    cot_policy: strip
+    examples: optional
+    raw:
+      description: "GLM-Z1 32B (reasoning model)"
+      supports_reasoning: true
+      native_reasoning: true
+      no_cot_instructions: true
+      output_structure_only: true
+      pure_logic_format: true
+
+preferences:
+  formatting: direct
+  chain_of_thought: helpful
+  markdown: moderate
+  verbosity: low
+  xml_tags: limited
+
+warnings:
+  - GLM-4 models expect short, commanding instructions
+  - GLM-4.6V supports vision — use coordinate references for image positions
+  - GLM-Z1 is a pure reasoning model — do not prescribe thinking process
+
+transformations:
+  - id: strip_llama_tokens
+    description: Remove Llama-specific special tokens
+    type: regex_replace
+    pattern: "\\[INST\\]|\\[/INST\\]|<<SYS>>|<</SYS>>"
+    replacement: ""
+
+  - id: apply_cot_policy
+    description: Apply sub_family CoT policy
+    type: cot_policy
+
+  - id: apply_prompt_style
+    description: Apply sub_family prompt style
+    type: prompt_style
+
+  - id: enforce_directness
+    description: Ensure prompt uses direct, commanding tone (GLM-4)
+    type: xml_rewrite
+    target_block: instructions
+    condition: model_variant starts_with "glm-4"
+
+  - id: add_coordinate_references
+    description: Add coordinate references for vision prompts (GLM-4.6V)
+    type: phrase_inject
+    phrase: "Referencia pozíció: {{coordinate}}"
+    position: end_of_system
+    condition: model_variant starts_with "glm-4.6v"
+
+sources:
+  - https://bigmodel.cn/
+  - https://open.bigmodel.cn/

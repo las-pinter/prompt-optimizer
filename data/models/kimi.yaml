@@ -1,0 +1,93 @@
+model_id: kimi
+display_name: Moonshot Kimi (K2 / K2.5 / K2.6 family)
+vendor: Moonshot AI
+api_type: varies
+
+chat_template:
+  default:
+    system_delivery: messages_role
+    user_wrapper: null
+    assistant_wrapper: null
+    special_tokens: []
+
+sub_families:
+  kimi-k2:
+    prompt_style: indexed_documents
+    cot_policy: inject
+    examples: optional
+    raw:
+      description: "Kimi K2"
+      supports_reasoning: false
+      extreme_context_window: true
+      context_window_tokens: 2000000
+      document_indexing: true
+      index_format: "[Paragraph {{N}}]"
+
+  kimi-k2.5:
+    prompt_style: indexed_documents
+    cot_policy: inject
+    examples: optional
+    raw:
+      description: "Kimi K2.5"
+      supports_reasoning: false
+      extreme_context_window: true
+      context_window_tokens: 2500000
+      document_indexing: true
+      index_format: "[Paragraph {{N}}]"
+
+  kimi-k2.6:
+    prompt_style: indexed_documents
+    cot_policy: inject
+    examples: optional
+    raw:
+      description: "Kimi K2.6"
+      supports_reasoning: false
+      extreme_context_window: true
+      context_window_tokens: 2000000
+      document_indexing: true
+      index_format: "[Paragraph {{N}}]"
+
+preferences:
+  formatting: markdown
+  chain_of_thought: helpful
+  markdown: good
+  verbosity: medium
+  xml_tags: limited
+  multilingual: excellent
+
+warnings:
+  - Kimi excels with extremely long context windows (2M+ tokens)
+  - Documents should be indexed with paragraph references for precise citation
+  - Use clear section headers to organize long documents
+
+transformations:
+  - id: strip_llama_tokens
+    description: Remove Llama-specific special tokens
+    type: regex_replace
+    pattern: "\\[INST\\]|\\[/INST\\]|<<SYS>>|<</SYS>>"
+    replacement: ""
+
+  - id: apply_cot_policy
+    description: Apply sub_family CoT policy
+    type: cot_policy
+
+  - id: apply_prompt_style
+    description: Apply sub_family prompt style
+    type: prompt_style
+
+  - id: index_documents
+    description: Index documents with paragraph references for precise citation
+    type: xml_rewrite
+    target_block: indexed_docs
+    condition: model_variant starts_with "kimi"
+
+  - id: add_reference_markers
+    description: Add citation markers for indexed paragraphs
+    type: phrase_inject
+    phrase: "[Referencia: {{paragraph_id}}]"
+    position: end_of_system
+    condition: model_variant starts_with "kimi"
+
+sources:
+  - https://kimi.moonshot.cn/
+  - https://platform.moonshot.cn/

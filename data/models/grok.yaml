@@ -1,0 +1,71 @@
+model_id: grok
+display_name: xAI Grok (Grok 3 family)
+vendor: xAI
+api_type: varies
+
+chat_template:
+  default:
+    system_delivery: messages_role
+    user_wrapper: null
+    assistant_wrapper: null
+    special_tokens: []
+
+sub_families:
+  grok-3:
+    prompt_style: casual
+    cot_policy: inject
+    examples: optional
+    raw:
+      description: "Grok 3"
+      supports_reasoning: false
+      casual_style: true
+      informal_friendly: true
+      markdown_headers_required_for_tables: true
+
+  grok-3-mini:
+    prompt_style: casual
+    cot_policy: inject
+    examples: optional
+    raw:
+      description: "Grok 3 Mini"
+      supports_reasoning: false
+      casual_style: true
+      informal_friendly: true
+      markdown_headers_required_for_tables: true
+
+preferences:
+  formatting: markdown
+  chain_of_thought: helpful
+  markdown: good
+  verbosity: medium
+  xml_tags: limited
+
+warnings:
+  - Grok models handle casual, informal prompts well
+  - Markdown headers are mandatory when requesting tables or structured data
+  - Less formal tone is acceptable but data structures need proper formatting
+
+transformations:
+  - id: strip_llama_tokens
+    description: Remove Llama-specific special tokens
+    type: regex_replace
+    pattern: "\\[INST\\]|\\[/INST\\]|<<SYS>>|<</SYS>>"
+    replacement: ""
+
+  - id: apply_cot_policy
+    description: Apply sub_family CoT policy
+    type: cot_policy
+
+  - id: apply_prompt_style
+    description: Apply sub_family prompt style
+    type: prompt_style
+
+  - id: enforce_table_markdown
+    description: Ensure tables use Markdown headers (Grok)
+    type: xml_rewrite
+    target_block: table_data
+    condition: model_variant starts_with "grok"
+
+sources:
+  - https://grok.x.ai/
+  - https://docs.x.ai/

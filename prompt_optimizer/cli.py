@@ -77,7 +77,12 @@ def main() -> None:
         print("Available model profiles:")
         for model_id in engine.list_models():
             profile = engine.get_profile(model_id)
-            print(f"  {model_id:<12} — {profile.display_name}")
+            sub_families = profile.sub_families
+            if sub_families:
+                sf_list = ", ".join(sub_families.keys())
+                print(f"  {model_id:<12} — {profile.display_name} (sub-families: {sf_list})")
+            else:
+                print(f"  {model_id:<12} — {profile.display_name}")
         sys.exit(0)
 
     # Read prompt

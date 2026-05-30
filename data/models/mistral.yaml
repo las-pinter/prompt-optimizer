@@ -1,34 +1,180 @@
 model_id: mistral
 display_name: Mistral AI (Mistral 7B / Mixtral / Mistral Large family)
 vendor: Mistral AI
-api_type: varies  # OpenAI-compatible API, transformers, llama.cpp, Ollama
+api_type: varies
 
 chat_template:
   instruct:
     system_delivery: inline_tokens
-    # Mistral instruct uses a simplified version of Llama 2's format (no <<SYS>>)
     format: "<s>[INST] {system}\n\n{user} [/INST]"
     special_tokens: ["<s>", "</s>", "[INST]", "[/INST]"]
   v3_tekken:
-    # Mistral v3+ uses a new tokenizer (Tekken) with different token IDs
     system_delivery: inline_tokens
     format: "[INST]{system}\n\n{user}[/INST]"
+    special_tokens: ["[INST]", "[/INST]"]
+
+sub_families:
+  mistral-7b:
+    prompt_style: default
+    cot_policy: inject
+    examples: never
+    raw:
+      description: "Mistral 7B (v0.1, v0.3)"
+      chat_template: instruct
+      translate_instructions_to_english: true
+      supports_reasoning: false
+      cot_benefit: true
+
+  mistral-small:
+    prompt_style: default
+    cot_policy: inject
+    examples: never
+    raw:
+      description: "Mistral Small 3, Small 3.1"
+      chat_template: v3_tekken
+      translate_instructions_to_english: true
+      supports_reasoning: false
+      cot_benefit: true
+
+  mistral-medium:
+    prompt_style: default
+    cot_policy: inject
+    examples: never
+    raw:
+      description: "Mistral Medium 3"
+      chat_template: v3_tekken
+      translate_instructions_to_english: true
+      supports_reasoning: false
+      cot_benefit: true
+
+  mistral-large:
+    prompt_style: default
+    cot_policy: inject
+    examples: never
+    raw:
+      description: "Mistral Large 2"
+      chat_template: v3_tekken
+      translate_instructions_to_english: true
+      supports_reasoning: true
+      cot_benefit: true
+
+  mistral-large-3:
+    prompt_style: reasoning_effort
+    cot_policy: inject
+    examples: never
+    raw:
+      description: "Mistral Large 3"
+      chat_template: v3_tekken
+      translate_instructions_to_english: true
+      supports_reasoning: true
+      cot_benefit: true
+      reasoning_effort_control: true
+      effort_high: "Use high reasoning effort"
+      effort_low: "Provide a fast, direct answer"
+
+  mistral-small-4:
+    prompt_style: reasoning_effort
+    cot_policy: inject
+    examples: never
+    raw:
+      description: "Mistral Small 4"
+      chat_template: v3_tekken
+      translate_instructions_to_english: true
+      supports_reasoning: true
+      cot_benefit: true
+      reasoning_effort_control: true
+
+  mistral-medium-3.5:
+    prompt_style: reasoning_effort
+    cot_policy: inject
+    examples: never
+    raw:
+      description: "Mistral Medium 3.5"
+      chat_template: v3_tekken
+      translate_instructions_to_english: true
+      supports_reasoning: true
+      cot_benefit: true
+      reasoning_effort_control: true
+
+  magistral:
+    prompt_style: reasoning_effort
+    cot_policy: inject
+    examples: never
+    raw:
+      description: "Magistral Medium, Magistral Small, Magistral-2"
+      chat_template: v3_tekken
+      translate_instructions_to_english: true
+      supports_reasoning: true
+      cot_benefit: true
+      reasoning_effort_control: true
+
+  mixtral:
+    prompt_style: expertise
+    cot_policy: inject
+    examples: never
+    raw:
+      description: "Mixtral 8x7B, Mixtral 8x22B (MoE)"
+      chat_template: instruct
+      translate_instructions_to_english: true
+      supports_reasoning: false
+      cot_benefit: true
+      moe: true
+      expertise_activation: true
+      expertise_prefix: "Act as a {{domain}} expert"
+
+  ministral:
+    prompt_style: atomic
+    cot_policy: inject
+    examples: never
+    raw:
+      description: "Ministral 3B, 8B, 14B (edge models)"
+      chat_template: v3_tekken
+      translate_instructions_to_english: true
+      supports_reasoning: false
+      cot_benefit: true
+      atomic_requests_only: true
+      max_tasks_per_prompt: 1
+
+  codestral:
+    prompt_style: code_raw
+    cot_policy: strip
+    examples: never
+    raw:
+      description: "Codestral 25.01 (code-only)"
+      chat_template: v3_tekken
+      code_only: true
+      no_greeting: true
+      no_narrative: true
+      raw_spec_format: true
+
+  devstral:
+    prompt_style: code_raw
+    cot_policy: strip
+    examples: never
+    raw:
+      description: "Devstral 2 (code-only)"
+      chat_template: v3_tekken
+      code_only: true
+      no_greeting: true
+      no_narrative: true
+      raw_spec_format: true
 
 preferences:
-  formatting: moderate         # more flexible than Llama but benefits from clear structure
-  chain_of_thought: helpful    # benefits from explicit CoT on reasoning tasks
+  formatting: moderate
+  chain_of_thought: helpful
   markdown: moderate
-  verbosity: medium-low        # more concise by default than Claude
+  verbosity: medium-low
   xml_tags: limited
   nested_instructions: moderate
   role_play: good
-  guidance_needed: moderate    # more guidance needed than GPT for complex tasks
+  guidance_needed: moderate
 
 warnings:
   - Mistral instruct format does NOT use <<SYS>> tags — system prompt goes directly inside [INST]
   - Mistral v3+ (Tekken tokenizer) has different special token behavior — check model version
   - Mixtral (MoE) models are more capable and handle complexity better than base Mistral 7B
   - Mistral Large (via La Plateforme API) is OpenAI-compatible and needs no special tokens
+  - Small edge models (Ministral) need atomic, single-task prompts
 
 transformations:
   - id: apply_mistral_instruct_template
@@ -38,7 +184,7 @@ transformations:
     condition: model_variant in ["7b-instruct", "mixtral-instruct"]
 
   - id: strip_sys_tags
-    description: Remove <<SYS>> tags which are Llama 2-specific, not Mistral
+    description: Remove <<SYS>> tags which are Llama 2-specific
     type: regex_replace
     pattern: "<<SYS>>|<</SYS>>"
     replacement: ""
@@ -49,6 +195,34 @@ transformations:
     phrase: "Think step by step."
     position: end_of_system
     condition: task_type == "reasoning" and not has_cot_instruction
+
+  - id: translate_to_english
+    description: Translate instructions to English for better logic performance
+    type: xml_rewrite
+    target_block: instructions
+    condition: model_variant starts_with "mistral-7b" or model_variant starts_with "mistral-small" or model_variant starts_with "mistral-medium" or model_variant starts_with "mistral-large"
+
+  - id: add_expertise_prefix
+    description: Add expertise prefix for MoE models
+    type: phrase_inject
+    phrase: "Act as a {{domain}} expert."
+    position: end_of_system
+    condition: model_variant starts_with "mixtral"
+
+  - id: apply_cot_policy
+    description: Apply sub_family CoT policy
+    type: cot_policy
+
+  - id: apply_prompt_style
+    description: Apply sub_family prompt style
+    type: prompt_style
+
+  - id: add_reasoning_effort
+    description: Add reasoning effort directive
+    type: phrase_inject
+    phrase: "Use high reasoning effort."
+    position: end_of_system
+    condition: model_variant starts_with "mistral-large-3" or model_variant starts_with "mistral-small-4" or model_variant starts_with "magistral"
 
 sources:
   - https://docs.mistral.ai/guides/prompting-capabilities/
