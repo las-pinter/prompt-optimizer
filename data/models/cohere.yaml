@@ -1,0 +1,84 @@
+model_id: cohere
+display_name: Cohere (Command R+ / Command A family)
+vendor: Cohere
+api_type: varies
+
+chat_template:
+  default:
+    system_delivery: messages_role
+    user_wrapper: null
+    assistant_wrapper: null
+    special_tokens: []
+
+sub_families:
+  command-r-plus:
+    prompt_style: rag
+    cot_policy: inject
+    examples: helpful
+    raw:
+      description: "Command R+"
+      rag_focused: true
+      source_based: true
+      quote_requirement: true
+      source_start_tag: "[SOURCE START]"
+      source_end_tag: "[SOURCE END]"
+      base_prompt: "Based on the provided sources below, answer the question. Support every claim with a precise quote from the source. If the information is not in the text, state that explicitly."
+
+  command-a:
+    prompt_style: rag
+    cot_policy: inject
+    examples: helpful
+    raw:
+      description: "Command A"
+      rag_focused: true
+      source_based: true
+      quote_requirement: true
+      source_start_tag: "[SOURCE START]"
+      source_end_tag: "[SOURCE END]"
+      base_prompt: "Based on the provided sources below, answer the question. Support every claim with a precise quote from the source. If the information is not in the text, state that explicitly."
+
+preferences:
+  formatting: markdown
+  chain_of_thought: helpful
+  markdown: good
+  verbosity: medium
+  xml_tags: limited
+  rag: excellent
+
+warnings:
+  - Cohere Command R+ and Command A are RAG-focused models
+  - Every claim must be supported by a precise quote from the source
+  - If information is not in the provided sources, the model should indicate it
+  - Sources must be wrapped in [SOURCE START] and [SOURCE END] tags
+
+transformations:
+  - id: strip_llama_tokens
+    description: Remove Llama-specific special tokens
+    type: regex_replace
+    pattern: "\\[INST\\]|\\[/INST\\]|<<SYS>>|<</SYS>>"
+    replacement: ""
+
+  - id: apply_cot_policy
+    description: Apply sub_family CoT policy
+    type: cot_policy
+
+  - id: apply_prompt_style
+    description: Apply sub_family prompt style
+    type: prompt_style
+
+  - id: add_rag_base_prompt
+    description: Add RAG base prompt (Cohere)
+    type: phrase_inject
+    phrase: "Based on the provided sources below, answer the question. Support every claim with a precise quote from the source. If the information is not in the text, state that explicitly."
+    position: end_of_system
+    condition: model_variant starts_with "command"
+
+  - id: wrap_sources
+    description: Wrap source documents in [SOURCE START] / [SOURCE END] tags
+    type: xml_rewrite
+    target_block: sources
+    condition: model_variant starts_with "command"
+
+sources:
+  - https://docs.cohere.com/
+  - https://cohere.com/

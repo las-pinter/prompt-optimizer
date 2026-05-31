@@ -1,0 +1,109 @@
+model_id: deepseek
+display_name: DeepSeek (V2 / V3 / V4 / R1 family)
+vendor: DeepSeek
+api_type: varies
+
+chat_template:
+  default:
+    system_delivery: messages_role
+    user_wrapper: null
+    assistant_wrapper: null
+    special_tokens: []
+
+sub_families:
+  deepseek-v2:
+    prompt_style: default
+    cot_policy: inject
+    examples: helpful
+    raw:
+      description: "DeepSeek V2"
+      supports_reasoning: false
+      markdown_format: standard
+      pseudocode_support: true
+
+  deepseek-v3:
+    prompt_style: default
+    cot_policy: inject
+    examples: helpful
+    raw:
+      description: "DeepSeek V3, V3-0324, V3.1, V3.2"
+      supports_reasoning: false
+      markdown_format: standard
+      pseudocode_support: true
+
+  deepseek-v4:
+    prompt_style: rag_blocks
+    cot_policy: inject
+    examples: helpful
+    raw:
+      description: "DeepSeek V4 Flash, V4 Pro"
+      supports_reasoning: false
+      rag_focused: true
+      document_blocks: true
+      quote_insertion: true
+      block_format: "【DOCUMENT N】"
+      quote_format: "— {{source}}"
+
+  deepseek-r1:
+    prompt_style: raw_data
+    cot_policy: strip
+    examples: optional
+    raw:
+      description: "DeepSeek R1, R1-0528, R1 Distill 7B, R1 Distill 32B"
+      supports_reasoning: true
+      native_reasoning: true
+      no_cot_instructions: true
+      output_structure_only: true
+      pure_logic_format: true
+
+preferences:
+  formatting: markdown_standard
+  chain_of_thought: helpful
+  markdown: good
+  verbosity: medium
+  xml_tags: limited
+  code: excellent
+  math: excellent
+
+warnings:
+  - DeepSeek models follow standard Markdown format well
+  - Coding tasks should use pseudocode or structured steps
+  - R1 is a pure reasoning model — do not prescribe thinking process in prompts
+  - V4 models excel at RAG-style (source-based) prompts with document blocks
+
+transformations:
+  - id: strip_llama_tokens
+    description: Remove Llama-specific special tokens
+    type: regex_replace
+    pattern: "\\[INST\\]|\\[/INST\\]|<<SYS>>|<</SYS>>"
+    replacement: ""
+
+  - id: apply_cot_policy
+    description: Apply sub_family CoT policy
+    type: cot_policy
+
+  - id: apply_prompt_style
+    description: Apply sub_family prompt style
+    type: prompt_style
+
+  - id: add_pseudocode_steps
+    description: Convert coding requests to pseudocode (V2/V3)
+    type: xml_rewrite
+    target_block: code_instructions
+    condition: model_variant starts_with "deepseek-v2" or model_variant starts_with "deepseek-v3"
+
+  - id: add_document_blocks
+    description: Wrap source documents in blocks with quotes (V4)
+    type: doc_wrap
+    target_block: documents
+    condition: model_variant starts_with "deepseek-v4"
+
+  - id: suggest_length_constraint
+    description: Warn about verbosity
+    type: lint_warning
+    check: no_length_instruction
+    message: "DeepSeek models benefit from explicit length constraints."
+
+sources:
+  - https://docs.deepseek.com/
+  - https://huggingface.co/deepseek-ai

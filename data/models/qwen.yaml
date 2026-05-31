@@ -1,28 +1,109 @@
 model_id: qwen
-display_name: Alibaba Qwen (Qwen2 / Qwen2.5 / QwQ family)
+display_name: Alibaba Qwen (Qwen2 / Qwen2.5 / Qwen3 family)
 vendor: Alibaba DAMO Academy
-api_type: varies  # transformers, vLLM, Ollama, OpenAI-compatible API
+api_type: varies
 
 chat_template:
   chatml:
     system_delivery: inline_tokens
-    format: "<|im_start|>system\n{system}<|im_end|>\n<|im_start|>user\n{user}<|im_end|>\n<|im_start|>assistant\n"
+    format: "<｜im_start｜>system\n{system}<｜im_end｜>\n<｜im_start｜>user\n{user}<｜im_end｜>\n<｜im_start｜>assistant\n"
     special_tokens:
-      - "<|im_start|>"
-      - "<|im_end|>"
+      - "<｜im_start｜>"
+      - "<｜im_end｜>"
+
+sub_families:
+  qwen2:
+    prompt_style: default
+    cot_policy: inject
+    examples: helpful
+    raw:
+      description: "Qwen2 72B"
+      chat_template: chatml
+      supports_long_context: true
+      markdown_format: smooth
+      example_benefit: true
+      supports_reasoning: false
+
+  qwen2.5:
+    prompt_style: default
+    cot_policy: inject
+    examples: helpful
+    raw:
+      description: "Qwen2.5 (7B, 32B, 72B, Max, Plus, Turbo)"
+      chat_template: chatml
+      supports_long_context: true
+      markdown_format: smooth
+      example_benefit: true
+      supports_reasoning: false
+
+  qwen-coder:
+    prompt_style: code_raw
+    cot_policy: strip
+    examples: never
+    raw:
+      description: "Qwen2.5-Coder 32B, Qwen3-Coder 480B (MoE)"
+      chat_template: chatml
+      code_only: true
+      no_greeting: true
+      no_narrative: true
+      raw_spec_format: true
+      supports_reasoning: false
+
+  qwq:
+    prompt_style: raw_data
+    cot_policy: strip
+    examples: optional
+    raw:
+      description: "QwQ-32B (reasoning model)"
+      chat_template: chatml
+      supports_reasoning: true
+      native_reasoning: true
+      no_cot_instructions: true
+      output_structure_only: true
+
+  qwen3:
+    prompt_style: hybrid_xml_markdown
+    cot_policy: inject
+    examples: helpful
+    raw:
+      description: "Qwen3 (0.6B-32B, 30B-A3B, 235B-A22B, Next 80B-A3B)"
+      chat_template: chatml
+      supports_long_context: true
+      markdown_format: smooth
+      example_benefit: true
+      hybrid_structure: true
+      xml_for_structure: true
+      markdown_for_role: true
+      supports_reasoning: false
+
+  qwen3.5:
+    prompt_style: hybrid_xml_markdown
+    cot_policy: inject
+    examples: helpful
+    raw:
+      description: "Qwen3.5 / 3.6 (9B-397B, MoE variants)"
+      chat_template: chatml
+      supports_long_context: true
+      markdown_format: smooth
+      example_benefit: true
+      hybrid_structure: true
+      xml_for_structure: true
+      markdown_for_role: true
+      moe: true
+      supports_reasoning: false
 
 preferences:
   formatting: explicit
-  chain_of_thought: helpful    # QwQ (reasoning variant) uses extended CoT natively
+  chain_of_thought: helpful
   markdown: moderate
   verbosity: medium
   xml_tags: limited
-  multilingual: excellent      # strong Chinese/English bilingual capability
-  code: excellent              # Qwen-Coder variants are strong at code tasks
-  math: excellent              # strong math reasoning, especially QwQ
+  multilingual: excellent
+  code: excellent
+  math: excellent
 
 warnings:
-  - Qwen uses ChatML format (<|im_start|> / <|im_end|>) — not Llama or Alpaca format
+  - Qwen uses ChatML format (<｜im_start｜> / <｜im_end｜>) — not Llama or Alpaca format
   - QwQ is a reasoning model with extended chain-of-thought; do not suppress thinking tokens
   - Qwen2.5-Coder should be prompted with code-specific context for best results
   - Bilingual prompts (Chinese + English) are well supported but pick one language per session
@@ -38,6 +119,25 @@ transformations:
     type: regex_replace
     pattern: "\\[INST\\]|\\[/INST\\]|<<SYS>>|<</SYS>>"
     replacement: ""
+
+  - id: apply_cot_policy
+    description: Apply sub_family CoT policy
+    type: cot_policy
+
+  - id: apply_prompt_style
+    description: Apply sub_family prompt style
+    type: prompt_style
+
+  - id: inject_examples
+    description: Insert short examples into prompt (qwen2.5+)
+    type: example_inject
+    condition: model_variant starts_with "qwen2" or model_variant starts_with "qwen2.5"
+
+  - id: hybrid_structure
+    description: Use XML for structure + Markdown for role (qwen3+)
+    type: xml_rewrite
+    target_block: structure
+    condition: model_variant starts_with "qwen3" or model_variant starts_with "qwen3.5"
 
 sources:
   - https://qwen.readthedocs.io/en/latest/
